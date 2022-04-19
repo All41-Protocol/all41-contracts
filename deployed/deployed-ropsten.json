@@ -1,0 +1,7 @@
+{
+    "dsPause": "0x7D981d3e2ac32e2F1263546C39ae48a4578af7E9",
+    "dsPauseProxy": "0x1832b812669c4E7Cc36522ca4Ae60014e8Dd5dDe",
+    "proxyAdmin": "0xBADBC85789a71Bd5e64fec1657Bbfdd1b21a9Ba3",
+    "interestManager": "0x7A8C0dd2169b97D9Ed416E90eb7b12A227A002F3",
+    "interestManagerLogic": "0x17553A3A56228d1213662e706CE14850a880FDc9"
+}
