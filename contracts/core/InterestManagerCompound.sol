@@ -66,7 +66,7 @@ contract InterestManagerCompound is Ownable, Initializable {
 
         // Before supplying an asset (DAI), THIS contract must approve that _cDai contract is allowed to access/transfer amount of DAI: https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-
         require(_dai.approve(address(_cDai), amount), "dai-cdai-approve");
-        // User shall supply the asset (DAI) and receive the minted cTokens. So, this method subtracts DAI from user's wallet and adds cTokens to their wallet: https://compound.finance/docs/ctokens#mint
+        // User shall supply the asset (DAI) to THIS contract and THIS contract will receive the minted cTokens. So, this method subtracts DAI from THIS contract and adds cTokens to THIS contract: https://compound.finance/docs/ctokens#mint
         require(_cDai.mint(amount) == 0, "cdai-mint");
 
         uint balanceAfter = _cDai.balanceOf(address(this));
@@ -111,6 +111,7 @@ contract InterestManagerCompound is Ownable, Initializable {
      * Updates accrued interest on the invested Dai
      */
     function accrueInterest() external {
+        // Applies accrued interest to total borrows and reserves for our cDai instance here: https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/CToken.sol#L384
         require(_cDai.accrueInterest() == 0, "accrue");
     }
 

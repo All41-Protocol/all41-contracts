@@ -11,7 +11,7 @@ const allDeploymentParams = {
   // },
 	rinkeby: {
 		timelockDelay: '1',
-		gasPrice: 50000000000, // 50 gwei
+		gasPrice: 1000000000, // 1 gwei
 	},
 }
 
@@ -75,8 +75,7 @@ async function main() {
 		const dsPause = await deployContract(
 			'DSPause',
 			deploymentParams.timelockDelay,
-      // TODO: replace this with externalContractAdresses.multisig once you figure out rinkeby BS
-			"0x48Ec34B08b7B624c3C6030696cCDa1C634e6A2eA" // This value will be owner of the DSPause contract
+			deploymentParams.multisig // This value will be owner of the DSPause contract
 		)
 		dsPauseProxyAddress = await dsPause._proxy()
 		saveDeployedAddress(networkName, 'dsPause', dsPause.address)
@@ -114,8 +113,7 @@ async function main() {
 			externalContractAdresses.dai,
 			externalContractAdresses.cDai,
 			externalContractAdresses.comp,
-      // TODO: replace this with externalContractAdresses.multisig once you figure out rinkeby BS
-			"0x48Ec34B08b7B624c3C6030696cCDa1C634e6A2eA" // The address of the recipient of the Comp tokens
+			deploymentParams.multisig // The address of the recipient of the Comp tokens
 		)
 
 		interestManagerCompoundProxyAddress = interestManagerCompoundProxy.address
