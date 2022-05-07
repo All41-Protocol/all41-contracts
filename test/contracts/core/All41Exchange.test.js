@@ -11,15 +11,11 @@ describe('core/All41Exchange', () => {
 
 	const tenPow18 = BigNumber.from('10').pow(BigNumber.from('18'))
 
-	const tokenName = 'test.com'
-
 	let userAccount
 	let userAccount2
 	let adminAccount
 	let interestReceiverAccount
-	const zeroAddress = '0x0000000000000000000000000000000000000000'
 	const oneAddress = '0x0000000000000000000000000000000000000001'
-	const someAddress = '0x52bc44d5378309EE2abF1539BF71dE1b7d7bE3b5' // random addr from etherscan
 
 	let dai
 	let comp
@@ -55,7 +51,7 @@ describe('core/All41Exchange', () => {
 		cDai = await TestCDai.deploy(dai.address, comp.address, comptroller.address)
 		await cDai.deployed()
     // Starting exchange rate
-		await cDai.setExchangeRate(1)
+		await cDai.setExchangeRate(tenPow18.mul(BigNumber.from('1')))
 
 		interestManagerCompound = await InterestManagerCompound.deploy()
 		await interestManagerCompound.deployed()
@@ -68,13 +64,16 @@ describe('core/All41Exchange', () => {
       // initialize(address owner, address dai, address cDai, address comp, address compRecipient)
 			.initialize(all41Exchange.address, dai.address, cDai.address, comp.address, oneAddress)
 
+    const tradingFeeRate = BigNumber.from('0')
+
 		await all41Exchange
 			.connect(adminAccount)
-      // initialize(address owner, address interestManager, address dai)
+      // initialize(address owner, address interestManager, address dai, uint tradingFeeRate)
 			.initialize(
 				adminAccount.address,
 				interestManagerCompound.address,
-				dai.address
+				dai.address,
+        tradingFeeRate
 			)
 	})
 
@@ -83,7 +82,7 @@ describe('core/All41Exchange', () => {
 	})
 
 	it('fail depositToWalletPool - user did not give enough allowance to All41Exchange contract', async () => {
-		const amount = 50
+		const amount = BigNumber.from('50').mul(tenPow18)
 		await dai.mint(userAccount.address, amount)
 
 		await expect(
@@ -92,9 +91,9 @@ describe('core/All41Exchange', () => {
 	})
 
 	it('fail depositToWalletPool - user does not have enough DAI', async () => {
-		const amount = 50 // Amount of DAI user is trying to deposit
+		const amount = BigNumber.from('50').mul(tenPow18) // Amount of DAI user is trying to deposit
     // Give userAccount 1 less DAI than amount they are trying to deposit
-		await dai.mint(userAccount.address, amount - 1)
+		await dai.mint(userAccount.address, amount.sub(BigNumber.from('1')))
 
     // User approves all41Exchange to transfer amount of DAI
     await dai.approve(all41Exchange.address, amount)
@@ -129,7 +128,7 @@ describe('core/All41Exchange', () => {
 
   // deposit some DAI, do not gain any interest. Try withdrawing it
   it('userAccount deposits and interestReceiverAccount withdraws it all', async () => {
-    const amount = 50 // Amount of DAI user is trying to deposit
+    const amount = BigNumber.from('50').mul(tenPow18) // Amount of DAI user is trying to deposit
 		await dai.mint(userAccount.address, amount)
     // User approves all41Exchange to transfer amount of DAI
     await dai.approve(all41Exchange.address, amount)
@@ -137,8 +136,8 @@ describe('core/All41Exchange', () => {
     await all41Exchange.connect(userAccount).depositToWalletPool(interestReceiverAccount.address, amount)
     
     expect((await all41Exchange.getInterestPayable(interestReceiverAccount.address)).eq(BigNumber.from('0'))).to.be.true
-    expect((await all41Exchange.getAmountInvested(interestReceiverAccount.address)).eq(BigNumber.from('50'))).to.be.true
-    expect((await all41Exchange.getAmountInvestedWithInterest(interestReceiverAccount.address)).eq(BigNumber.from('50'))).to.be.true
+    expect((await all41Exchange.getAmountInvested(interestReceiverAccount.address)).eq(amount)).to.be.true
+    expect((await all41Exchange.getAmountInvestedWithInterest(interestReceiverAccount.address)).eq(amount)).to.be.true
 
     // They have not withdrawn yet, so they have no DAI
 		expect((await dai.balanceOf(interestReceiverAccount.address)).eq(BigNumber.from('0'))).to.be.true
@@ -147,7 +146,7 @@ describe('core/All41Exchange', () => {
 		expect((await dai.balanceOf(interestReceiverAccount.address)).eq(BigNumber.from('0'))).to.be.true
     await all41Exchange.connect(interestReceiverAccount).withdrawAmount(interestReceiverAccount.address, amount)
     // They withdrew all DAI deposited by userAccount
-		expect((await dai.balanceOf(interestReceiverAccount.address)).eq(BigNumber.from('50'))).to.be.true
+		expect((await dai.balanceOf(interestReceiverAccount.address)).eq(amount)).to.be.true
 	
     expect((await all41Exchange.getInterestPayable(interestReceiverAccount.address)).eq(BigNumber.from('0'))).to.be.true
     expect((await all41Exchange.getAmountInvested(interestReceiverAccount.address)).eq(BigNumber.from('0'))).to.be.true
@@ -155,7 +154,7 @@ describe('core/All41Exchange', () => {
   })
 
   it('Deposit some DAI. Gain some interest. Try withdrawing some interest. Try withdrawing all interest, but not all DAI invested. Make sure interest comes out first', async () => {
-    const amount = 50 // Amount of DAI user is trying to deposit
+    const amount = BigNumber.from('50').mul(tenPow18) // Amount of DAI user is trying to deposit
 		await dai.mint(userAccount.address, amount)
     // User approves all41Exchange to transfer amount of DAI
     await dai.approve(all41Exchange.address, amount)
@@ -163,40 +162,57 @@ describe('core/All41Exchange', () => {
     await all41Exchange.connect(userAccount).depositToWalletPool(interestReceiverAccount.address, amount)
   
     // This artificially adds interest to interestReceiverAccount wallet pool
-    await cDai.setExchangeRate(2)
+    await cDai.setExchangeRate(tenPow18.mul(BigNumber.from('2')))
 
     let balanceOfReceiver = await dai.balanceOf(interestReceiverAccount.address)
     let interestPayable = await all41Exchange.getInterestPayable(interestReceiverAccount.address)
     let amountInvested = await all41Exchange.getAmountInvested(interestReceiverAccount.address)
     let amountInvestedWithInterest = await all41Exchange.getAmountInvestedWithInterest(interestReceiverAccount.address)
 
-    expect((interestPayable).eq(BigNumber.from('50'))).to.be.true
-    expect((amountInvested).eq(BigNumber.from('50'))).to.be.true
-    expect((amountInvestedWithInterest).eq(BigNumber.from('100'))).to.be.true
+    expect((interestPayable).eq(amount)).to.be.true
+    expect((amountInvested).eq(amount)).to.be.true
+    expect((amountInvestedWithInterest).eq(tenPow18.mul(BigNumber.from('100')))).to.be.true
 
-    await all41Exchange.connect(interestReceiverAccount).withdrawAmount(interestReceiverAccount.address, amount / 2)
+    await all41Exchange.connect(interestReceiverAccount).withdrawAmount(interestReceiverAccount.address, amount.div(BigNumber.from('2')))
 
     balanceOfReceiver = await dai.balanceOf(interestReceiverAccount.address)
     interestPayable = await all41Exchange.getInterestPayable(interestReceiverAccount.address)
     amountInvested = await all41Exchange.getAmountInvested(interestReceiverAccount.address)
     amountInvestedWithInterest = await all41Exchange.getAmountInvestedWithInterest(interestReceiverAccount.address)
 
-    expect((balanceOfReceiver).eq(BigNumber.from('25'))).to.be.true
-    expect((interestPayable).eq(BigNumber.from('25'))).to.be.true
-    expect((amountInvested).eq(BigNumber.from('50'))).to.be.true
-    expect((amountInvestedWithInterest).eq(BigNumber.from('75'))).to.be.true
+    expect((balanceOfReceiver).eq(tenPow18.mul(BigNumber.from('25')))).to.be.true
+    expect((interestPayable).eq(tenPow18.mul(BigNumber.from('25')))).to.be.true
+    expect((amountInvested).eq(tenPow18.mul(BigNumber.from('50')))).to.be.true
+    expect((amountInvestedWithInterest).eq(tenPow18.mul(BigNumber.from('75')))).to.be.true
 
     // Lets withdraw ALL 25 remaining interest and 10 of DAI deposited. This tests that interest is withdrawn first, then deposited DAI
-    await all41Exchange.connect(interestReceiverAccount).withdrawAmount(interestReceiverAccount.address, 35)
+    await all41Exchange.connect(interestReceiverAccount).withdrawAmount(interestReceiverAccount.address, tenPow18.mul(BigNumber.from('35')))
 
     balanceOfReceiver = await dai.balanceOf(interestReceiverAccount.address)
     interestPayable = await all41Exchange.getInterestPayable(interestReceiverAccount.address)
     amountInvested = await all41Exchange.getAmountInvested(interestReceiverAccount.address)
     amountInvestedWithInterest = await all41Exchange.getAmountInvestedWithInterest(interestReceiverAccount.address)
 
-    expect((balanceOfReceiver).eq(BigNumber.from('60'))).to.be.true
-    expect((interestPayable).eq(BigNumber.from('0'))).to.be.true
-    expect((amountInvested).eq(BigNumber.from('40'))).to.be.true
-    expect((amountInvestedWithInterest).eq(BigNumber.from('40'))).to.be.true
+    expect((balanceOfReceiver).eq(tenPow18.mul(BigNumber.from('60')))).to.be.true
+    expect((interestPayable).eq(tenPow18.mul(BigNumber.from('0')))).to.be.true
+    expect((amountInvested).eq(tenPow18.mul(BigNumber.from('40')))).to.be.true
+    expect((amountInvestedWithInterest).eq(tenPow18.mul(BigNumber.from('40')))).to.be.true
+  })
+
+  it('Set trading fee on contract creation correctly', async () => {
+    const tradingFeeRate = await all41Exchange._tradingFeeRate()
+    expect(tradingFeeRate).to.be.equal(BigNumber.from('0'))
+  })
+
+  it('Fail setTradingFeeRate - Only owner can set the trading fee', async () => {
+    await expect(all41Exchange.connect(userAccount).setTradingFeeRate('0')).to.be.revertedWith('only-owner')
+  })
+
+  it('Successfully setTradingFeeRate as owner', async () => {
+    let tradingFeeRate = await all41Exchange._tradingFeeRate()
+    expect(tradingFeeRate).to.be.equal(BigNumber.from('0'))
+    await all41Exchange.connect(adminAccount).setTradingFeeRate('200')
+    tradingFeeRate = await all41Exchange._tradingFeeRate()
+    expect(tradingFeeRate).to.be.equal(BigNumber.from('200'))
   })
 })

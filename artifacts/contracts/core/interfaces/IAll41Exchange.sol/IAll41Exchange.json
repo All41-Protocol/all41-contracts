@@ -79,6 +79,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "getTradingFeePayable",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "address",
@@ -100,6 +113,32 @@
     {
       "inputs": [
         {
+          "internalType": "uint256",
+          "name": "tradingFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "setTradingFeeRate",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "tradingFeeRecipient",
+          "type": "address"
+        }
+      ],
+      "name": "setTradingFeeRecipient",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "address",
           "name": "wallet",
           "type": "address"
@@ -111,6 +150,13 @@
         }
       ],
       "name": "withdrawAmount",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "withdrawTradingFee",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

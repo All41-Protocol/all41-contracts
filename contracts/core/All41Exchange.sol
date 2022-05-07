@@ -33,7 +33,17 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
     // Dai contract
     IERC20 _dai;
 
-    event DepositedState(address wallet, uint dai, uint cDai, uint daiAmount);
+    uint public _tradingFeeRate; // Set on creation and owner can set dynamically
+    uint constant FEE_SCALE = 10000;  // Used for converting decimal numbers
+
+    // The amount of "investment tokens" for the collected trading fee, e.g. cDai 
+    uint _tradingFeeInvested; 
+    // The address which receives the trading fee when withdrawTradingFee is called
+    address _tradingFeeRecipient;
+
+    event TradingFeeRedeemed(uint redeemed);
+
+    event DepositedState(address wallet, uint dai, uint cDai, uint total, uint daiAmount, uint tradingFeeInvested);
     event WalletAmountRedeemed(address wallet, uint investmentToken, uint daiRedeemed);
 
     /**
@@ -42,10 +52,12 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
     * @param owner The owner of the contract
     * @param interestManager The address of the InterestManager
     * @param dai The address of Dai
+    * @param tradingFeeRate The trading fee for the platform
     */
     function initialize(address owner,
                         address interestManager,
-                        address dai) external initializer {
+                        address dai,
+                        uint tradingFeeRate) external initializer {
       require(interestManager != address(0) &&
               dai != address(0),
               "invalid-params");
@@ -53,6 +65,7 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
       setOwnerInternal(owner); // Checks owner to be non-zero
       _interestManager = IInterestManager(interestManager);
       _dai = IERC20(dai);
+      _tradingFeeRate = tradingFeeRate;
     }
 
     /**
@@ -62,21 +75,28 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
     * @param daiAmount The amount of DAI being deposited
     */
     function depositToWalletPool(address wallet, uint daiAmount) external override {
+        uint tradingFee = daiAmount * _tradingFeeRate / FEE_SCALE;
+
+        uint total = daiAmount + tradingFee;
+
         // _dai.allowance(owner, spender) returns the remaining number of tokens that spender will be allowed to spend on behalf of owner through transferFrom. This is zero by default. This value changes when approve or transferFrom are called.
-        require(_dai.allowance(msg.sender, address(this)) >= daiAmount, "insufficient-allowance");
+        require(_dai.allowance(msg.sender, address(this)) >= total, "insufficient-allowance");
         // Moves daiAmount of DAI from sender to recipient using the allowance mechanism. daiAmount is then deducted from the caller’s allowance. Returns a boolean value indicating whether the operation succeeded. Emits a Transfer event.
-        require(_dai.transferFrom(msg.sender, address(_interestManager), daiAmount), "dai-transfer");
+        require(_dai.transferFrom(msg.sender, address(_interestManager), total), "dai-transfer");
 
         // Doing the Compound logic of investing into pool that generates interest
         _interestManager.accrueInterest();
-        _interestManager.invest(daiAmount);
+        _interestManager.invest(total);
+
+        uint tradingFeeInvested = _tradingFeeInvested + _interestManager.underlyingToInvestmentToken(tradingFee);
+        _tradingFeeInvested = tradingFeeInvested;
 
         // Doing the logic of keeping track of how much DAI is in each wallet and how much cDai they have. This info is stored in this contract.
         ExchangeInfo storage exchangeInfo = _walletsExchangeInfo[wallet];
         exchangeInfo.cDai = exchangeInfo.cDai + _interestManager.underlyingToInvestmentToken(daiAmount);
         exchangeInfo.dai = exchangeInfo.dai + daiAmount;
 
-        emit DepositedState(wallet, exchangeInfo.dai, exchangeInfo.cDai, daiAmount);
+        emit DepositedState(wallet, exchangeInfo.dai, exchangeInfo.cDai, total, daiAmount, tradingFeeInvested);
     }
 
     /**
@@ -136,6 +156,52 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
         }
 
         emit WalletAmountRedeemed(wallet, exchangeInfo.cDai, daiAmount);
+    }
+
+    /**
+     * Sets the tradingFeeRecipient address
+     *
+     * @param tradingFeeRecipient The new tradingFeeRecipient address
+     */
+    function setTradingFeeRecipient(address tradingFeeRecipient) external override onlyOwner {
+        require(tradingFeeRecipient != address(0), "invalid-params");
+        _tradingFeeRecipient = tradingFeeRecipient;
+    }
+
+    /**
+     * Sets the tradingFeeRate
+     *
+     * @param tradingFeeRate The new tradingFeeRate
+     */
+    function setTradingFeeRate(uint tradingFeeRate) external override onlyOwner {
+        _tradingFeeRate = tradingFeeRate;
+    }
+
+    /**
+     * Withdraws available trading fee
+     */
+    function withdrawTradingFee() external override {
+        uint invested = _tradingFeeInvested;
+        if(invested == 0) {
+            return;
+        }
+
+        _interestManager.accrueInterest();
+
+        _tradingFeeInvested = 0;
+        uint redeem = _interestManager.investmentTokenToUnderlying(invested);
+        _interestManager.redeem(_tradingFeeRecipient, redeem);
+
+        emit TradingFeeRedeemed(redeem);
+    }
+
+    /**
+     * Returns the trading fee available to be paid out
+     *
+     * @return The trading fee available to be paid out
+     */
+    function getTradingFeePayable() public view override returns (uint) {
+        return _interestManager.investmentTokenToUnderlying(_tradingFeeInvested);
     }
 
     /**
