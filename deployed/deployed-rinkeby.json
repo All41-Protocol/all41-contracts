@@ -1,0 +1,9 @@
+{
+    "dsPause": "0x0789b832633F50BF6e950345E184c59e4FeF582c",
+    "dsPauseProxy": "0xc4532c2d51d473d3290EC203B9DAef3DbE8379fB",
+    "proxyAdmin": "0x0db9047050FF3b979Fb072A1e2139971B75131C9",
+    "interestManager": "0x1f0F630fCEb5Bf6Be5ab5Cca80d7ec5Ce25682Df",
+    "interestManagerLogic": "0x9a215ce61eC1Cb5BBB2220dea9b2a5b52e170A16",
+    "all41Exchange": "0xB453B3B1B2cbC3F8c9b3D40A28571db68B3C5760",
+    "all41ExchangeLogic": "0x98EBA4f693Bd82dd49B3f99061d3102fca198d38"
+}

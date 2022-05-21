@@ -1,5 +1,3 @@
-const readline = require('readline')
-
 const { run, ethers, artifacts } = require('hardhat')
 const fs = require('fs')
 const { BigNumber } = require('ethers')
@@ -8,18 +6,19 @@ const allDeploymentParams = {
 	// mainnet: {
 	// 	timelockDelay: '86400', // 24 hours
 	// 	gasPrice: 130000000000,
+  //  tradingFeeRate: BigNumber.from('200'), // 2%
   // },
 	rinkeby: {
 		timelockDelay: '1',
-		gasPrice: 1000000000, // 1 gwei
+		gasPrice: 10000000000, // 10 gwei
+    tradingFeeRate: BigNumber.from('200'), // 2%
+    authorizer: '', // This is just my random wallet address
+    multisig: '0x675c93B9B876CdB1759d3b0bF91cC95E30DC68c4',  // My Gnosis Safe address on rinkeby called test-safe
 	},
 }
 
 const allExternalContractAddresses = {
 	rinkeby: {
-		authorizer: '', // This is just my random wallet address
-    multisig: '0x675c93B9B876CdB1759d3b0bF91cC95E30DC68c4',  // My Gnosis Safe address on rinkeby called test-safe
-	
     // These all come from Compound's faucets
     dai: '0x31F42841c2db5173425b5223809CF3A38FEde360',
     cDai: '0xbc689667C13FB2a04f09272753760E38a95B998C',
@@ -66,7 +65,7 @@ async function main() {
 		throw 'cannot deploy to network: ' + networkName
 	}
 
-  const STAGE = 1 // TODO: i guess change this # based on which stages you do or dont want to run
+  const STAGE = 4 // TODO: i guess change this # based on which stages you do or dont want to run
 
 	let dsPauseProxyAddress
 	if (STAGE <= 1) {
@@ -78,6 +77,7 @@ async function main() {
 			deploymentParams.multisig // This value will be owner of the DSPause contract
 		)
 		dsPauseProxyAddress = await dsPause._proxy()
+    console.log(`await dsPause._proxy() done`)
 		saveDeployedAddress(networkName, 'dsPause', dsPause.address)
 		saveDeployedABI(networkName, 'dsPause', artifacts.readArtifactSync('DSPause').abi)
 		saveDeployedAddress(networkName, 'dsPauseProxy', dsPauseProxyAddress)
@@ -124,6 +124,28 @@ async function main() {
 	} else {
 		interestManagerCompoundProxyAddress = loadDeployedAddress(networkName, 'interestManager')
 	}
+
+  let all41ExchangeProxyAddress
+	if (STAGE <= 4) {
+		console.log('4. Deploy All41Exchange')
+		console.log('==============================================')
+		const [all41ExchangeProxy, all41ExchangeLogic] = await deployProxyContract(
+			'All41Exchange',    // name
+			proxyAdminAddress,  // admin
+			dsPauseProxyAddress,    // address owner
+			interestManagerCompoundProxyAddress,  // address interestManager
+      externalContractAdresses.dai, // address dai
+			deploymentParams.tradingFeeRate,  // uint tradingFeeRate
+		)
+
+		all41ExchangeProxyAddress = all41ExchangeProxy.address
+		saveDeployedAddress(networkName, 'all41Exchange', all41ExchangeProxyAddress)
+		saveDeployedABI(networkName, 'all41Exchange', artifacts.readArtifactSync('All41Exchange').abi)
+		saveDeployedAddress(networkName, 'all41ExchangeLogic', all41ExchangeLogic.address)
+		console.log('')
+	} else {
+		all41ExchangeProxyAddress = loadDeployedAddress(networkName, 'all41Exchange')
+	}
   
 }
 
@@ -149,8 +171,9 @@ async function deployContract(name, ...params) {
 	console.log(`Deploying contract ${name}`)
 	const contractFactory = await ethers.getContractFactory(name)
 	const deployed = await contractFactory.deploy(...params, { gasPrice: deploymentParams.gasPrice })
-	console.log('deployed==', deployed)
+	console.log(`contractFactory.deploy of ${name} done`)
   await deployed.deployed()
+  console.log(`await deployed.deployed() of ${name} done`)
 	return deployed
 }
 

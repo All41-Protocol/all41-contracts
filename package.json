@@ -23,6 +23,8 @@
     "solidity-coverage": "^0.7.20"
   },
   "dependencies": {
+    "@nomiclabs/hardhat-etherscan": "^3.0.3",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
     "dotenv": "^16.0.0"
   }
 }

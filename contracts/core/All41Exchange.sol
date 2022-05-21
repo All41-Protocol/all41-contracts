@@ -43,8 +43,8 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
 
     event TradingFeeRedeemed(uint redeemed);
 
-    event DepositedState(address wallet, uint dai, uint cDai, uint total, uint daiAmount, uint tradingFeeInvested);
-    event WalletAmountRedeemed(address wallet, uint investmentToken, uint daiRedeemed);
+    event DepositedState(address wallet, address sender, uint dai, uint cDai, uint total, uint daiAmount, uint tradingFeeInvested);
+    event WalletAmountRedeemed(address wallet, uint dai, uint cDai, uint daiRedeemed);
 
     /**
     * Initializes the contract
@@ -96,7 +96,7 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
         exchangeInfo.cDai = exchangeInfo.cDai + _interestManager.underlyingToInvestmentToken(daiAmount);
         exchangeInfo.dai = exchangeInfo.dai + daiAmount;
 
-        emit DepositedState(wallet, exchangeInfo.dai, exchangeInfo.cDai, total, daiAmount, tradingFeeInvested);
+        emit DepositedState(wallet, msg.sender, exchangeInfo.dai, exchangeInfo.cDai, total, daiAmount, tradingFeeInvested);
     }
 
     /**
@@ -118,7 +118,7 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
         // redeem sends DAI to wallet owner and returns amount of burned cDai
         exchangeInfo.cDai = exchangeInfo.cDai - _interestManager.redeem(msg.sender, interestPayable);
 
-        emit WalletAmountRedeemed(wallet, exchangeInfo.cDai, interestPayable);
+        emit WalletAmountRedeemed(wallet, exchangeInfo.dai, exchangeInfo.cDai, interestPayable);
     }
 
     /**
@@ -155,7 +155,7 @@ contract All41Exchange is IAll41Exchange, Initializable, Ownable {
           exchangeInfo.dai = exchangeInfo.dai - amountAfterInterest;
         }
 
-        emit WalletAmountRedeemed(wallet, exchangeInfo.cDai, daiAmount);
+        emit WalletAmountRedeemed(wallet, exchangeInfo.dai, exchangeInfo.cDai, daiAmount);
     }
 
     /**
