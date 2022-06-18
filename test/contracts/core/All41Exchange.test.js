@@ -150,7 +150,7 @@ describe('core/All41Exchange', () => {
 
   // deposit some DAI, do not gain any interest. Try withdrawing it
   it('userAccount deposits and interestReceiverAccount withdraws it all', async () => {
-    const amount = ethers.BigNumber.from('50').mul(web3BNTenPow18) // Amount of DAI user is trying to deposit
+    const amount = ethers.BigNumber.from('50') // Amount of DAI user is trying to deposit
 		await dai.mint(userAccount.address, amount)
     // User approves all41Exchange to transfer amount of DAI
     await dai.approve(all41Exchange.address, amount)

@@ -15,6 +15,13 @@ const allDeploymentParams = {
     authorizer: '', // This is just my random wallet address
     multisig: '0x675c93B9B876CdB1759d3b0bF91cC95E30DC68c4',  // My Gnosis Safe address on rinkeby called test-safe
 	},
+	goerli: {
+		timelockDelay: '1',
+		gasPrice: 10000000000, // 10 gwei
+    tradingFeeRate: BigNumber.from('200'), // 2%
+    authorizer: '', // This is just my random wallet address
+    multisig: '0x0Ec02540BfB4F8fa97B97FF0dd8671EBE8CBA2Db',  // My Gnosis Safe address on goerli called test-safe
+	},
 }
 
 const allExternalContractAddresses = {
@@ -24,6 +31,13 @@ const allExternalContractAddresses = {
     cDai: '0xbc689667C13FB2a04f09272753760E38a95B998C',
     comp: '0xf76D4a441E4ba86A923ce32B89AFF89dBccAA075',
   },
+	goerli: {
+    // This comes from Compound's faucets
+    dai: '0xdc31Ee1784292379Fbb2964b3B9C4124D8F89C60',
+    // These 2 come from me deploying them
+    cDai: '0x5A705ea24b8E30Fa0b75D3aEf572a4eF2A64426E',
+    comp: '0xD91f542DAEb69Fa1A81D20F30c3D52d5A3f8753E',
+  },
 }
 
 let deploymentParams
@@ -31,13 +45,6 @@ let externalContractAdresses
 
 // Many concepts here. I'll try to explain them step by step in comments
 async function main() {
-  // const Box = await ethers.getContractFactory("Box"); // Get smart contract
-  // console.log("Deploying Box...");
-  // const box = await upgrades.deployProxy(Box, [42], {
-  //     initializer: "initialize",  // On deploy, call Box's initialize method and pass 42 as argument
-  // });
-  // await box.deployed(); // This waits until all of tx has been mined
-  // console.log("Box deployed to:", box.address);
 
   const deployerAccount = (await ethers.getSigners())[0]
 	const deployerAddress = deployerAccount.address
@@ -57,6 +64,10 @@ async function main() {
     console.log('Using ropsten')
     deploymentParams = allDeploymentParams.rinkeby
     externalContractAdresses = allExternalContractAddresses.rinkeby
+	} else if (networkName === 'goerli') {
+    console.log('Using goerli')
+    deploymentParams = allDeploymentParams.goerli
+    externalContractAdresses = allExternalContractAddresses.goerli
 	} else if (networkName === 'mainnet') {
 		console.log('Using Mainnet')
 		deploymentParams = allDeploymentParams.mainnet
