@@ -17,6 +17,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 });
 
 module.exports = {
+  defaultNetwork: "mainnet",
   solidity: {
 		version: '0.8.4',
 		settings: {
@@ -26,20 +27,24 @@ module.exports = {
 		},
 	},
   networks: {
-    kovan: {
-      url: `https://kovan.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: [process.env.PRI_KEY],
-    },
-    rinkeby: {
-      url: `https://rinkeby.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: [process.env.PRI_KEY],
-    },
-    ropsten: {
-      url: `https://ropsten.infura.io/v3/${process.env.INFURA_API_KEY}`,
-      accounts: [process.env.PRI_KEY],
-    },
-    goerli: {
-      url: `https://goerli.infura.io/v3/${process.env.INFURA_API_KEY}`,
+    // kovan: {
+    //   url: `https://kovan.infura.io/v3/${process.env.INFURA_API_KEY}`,
+    //   accounts: [process.env.PRI_KEY],
+    // },
+    // rinkeby: {
+    //   url: `https://rinkeby.infura.io/v3/${process.env.INFURA_API_KEY}`,
+    //   accounts: [process.env.PRI_KEY],
+    // },
+    // ropsten: {
+    //   url: `https://ropsten.infura.io/v3/${process.env.INFURA_API_KEY}`,
+    //   accounts: [process.env.PRI_KEY],
+    // },
+    // goerli: {
+    //   url: `https://goerli.infura.io/v3/${process.env.INFURA_API_KEY}`,
+    //   accounts: [process.env.PRI_KEY],
+    // },
+    mainnet: {
+      url: `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY}`,
       accounts: [process.env.PRI_KEY],
     },
   },

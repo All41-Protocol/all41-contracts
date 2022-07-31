@@ -3,11 +3,13 @@ const fs = require('fs')
 const { BigNumber } = require('ethers')
 
 const allDeploymentParams = {
-	// mainnet: {
-	// 	timelockDelay: '86400', // 24 hours
-	// 	gasPrice: 130000000000,
-  //  tradingFeeRate: BigNumber.from('200'), // 2%
-  // },
+  mainnet: {
+		timelockDelay: '86400', // 24 hours
+		gasPrice: 130000000000, // 130 gwei
+    tradingFeeRate: BigNumber.from('200'), // 2%
+    authorizer: '', // Not used
+    multisig: '0x37F9Ed37212d228A901693ebd197032D0d6e20Aa',  // Gnosis Safe address on mainnet called all41-safe
+	},
 	rinkeby: {
 		timelockDelay: '1',
 		gasPrice: 10000000000, // 10 gwei
@@ -25,6 +27,11 @@ const allDeploymentParams = {
 }
 
 const allExternalContractAddresses = {
+  mainnet: {
+    dai: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+    cDai: '0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643',
+    comp: '0xc00e94Cb662C3520282E6f5717214004A7f26888',
+  },
 	rinkeby: {
     // These all come from Compound's faucets
     dai: '0x31F42841c2db5173425b5223809CF3A38FEde360',
@@ -55,7 +62,9 @@ async function main() {
 	await run('compile')  // Compiles all local contracts that need to be compiled
 	console.log('Finished compiling')
 
-  let networkName = (await ethers.provider.getNetwork()).name
+  const tempNetworkName = (await ethers.getDefaultProvider().getNetwork()).name
+  const networkName = tempNetworkName === 'homestead' ? 'mainnet' : tempNetworkName
+  console.log(`networkName== ${networkName}`)
 	if (networkName === 'rinkeby') {
     console.log('Using rinkeby')
     deploymentParams = allDeploymentParams.rinkeby
@@ -76,7 +85,7 @@ async function main() {
 		throw 'cannot deploy to network: ' + networkName
 	}
 
-  const STAGE = 4 // TODO: i guess change this # based on which stages you do or dont want to run
+  const STAGE = 1 // TODO: i guess change this # based on which stages you do or dont want to run
 
 	let dsPauseProxyAddress
 	if (STAGE <= 1) {
@@ -120,7 +129,7 @@ async function main() {
 		const [interestManagerCompoundProxy, interestManagerCompoundLogic] = await deployProxyContract(
 			'InterestManagerCompound',
 			proxyAdminAddress,
-			deployerAddress, // owner - you can easily change this later (see how in step 5 of IM deploy script)
+			deployerAddress, // owner - you can easily change this later (see how in step 5 of IM deploy script). Only owner of this contract can call most the methods, so owner needs to be All41Exchange
 			externalContractAdresses.dai,
 			externalContractAdresses.cDai,
 			externalContractAdresses.comp,
@@ -143,7 +152,7 @@ async function main() {
 		const [all41ExchangeProxy, all41ExchangeLogic] = await deployProxyContract(
 			'All41Exchange',    // name
 			proxyAdminAddress,  // admin
-			dsPauseProxyAddress,    // address owner
+			dsPauseProxyAddress,    // address owner - they control trading fee methods and can only be changed by current owner
 			interestManagerCompoundProxyAddress,  // address interestManager
       externalContractAdresses.dai, // address dai
 			deploymentParams.tradingFeeRate,  // uint tradingFeeRate
@@ -180,7 +189,17 @@ async function deployProxyContract(name, admin, ...params) {
  */
 async function deployContract(name, ...params) {
 	console.log(`Deploying contract ${name}`)
+
+  // const signer = (await ethers.getSigners())[0]
+  // console.log('signer==', signer)
+
 	const contractFactory = await ethers.getContractFactory(name)
+
+  const deploymentData = contractFactory.interface.encodeDeploy([...params])
+  const estimatedGas = await ethers.provider.estimateGas({ data: deploymentData })
+
+  console.log('estimatedGas==', estimatedGas)
+
 	const deployed = await contractFactory.deploy(...params, { gasPrice: deploymentParams.gasPrice })
 	console.log(`contractFactory.deploy of ${name} done`)
   await deployed.deployed()
