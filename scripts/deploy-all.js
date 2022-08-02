@@ -190,17 +190,31 @@ async function deployProxyContract(name, admin, ...params) {
 async function deployContract(name, ...params) {
 	console.log(`Deploying contract ${name}`)
 
-  // const signer = (await ethers.getSigners())[0]
-  // console.log('signer==', signer)
-
 	const contractFactory = await ethers.getContractFactory(name)
 
-  const deploymentData = contractFactory.interface.encodeDeploy([...params])
-  const estimatedGas = await ethers.provider.estimateGas({ data: deploymentData })
-
+  const gasPrice = await contractFactory.signer.getGasPrice()
+  console.log(`Current gas price: ${gasPrice}`)
+  const estimatedGas = await contractFactory.signer.estimateGas(
+    contractFactory.getDeployTransaction(...params),
+  )
   console.log('estimatedGas==', estimatedGas)
 
-	const deployed = await contractFactory.deploy(...params, { gasPrice: deploymentParams.gasPrice })
+  const deploymentPrice = gasPrice.mul(estimatedGas)
+  const deployerBalance = await contractFactory.signer.getBalance()
+
+  console.log(`Deployer balance:  ${ethers.utils.formatEther(deployerBalance)}`)
+  console.log(`Deployment price:  ${ethers.utils.formatEther(deploymentPrice)}`)
+
+  if (deployerBalance.lt(deploymentPrice)) {
+    console.log(
+      `Insufficient funds. Top up your account balance by ${ethers.utils.formatEther(
+        deploymentPrice.sub(deployerBalance),
+      )}`,
+    )
+  }
+
+  // I couldn't get this crap to deploy when manually defining gasPrice, but I removed it and then it worked...
+	const deployed = await contractFactory.deploy(...params)
 	console.log(`contractFactory.deploy of ${name} done`)
   await deployed.deployed()
   console.log(`await deployed.deployed() of ${name} done`)
